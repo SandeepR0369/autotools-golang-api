@@ -5,16 +5,23 @@ package main
 import (
 	"autotools-golang-api/kubecloudsinc/dbs" // Replace with the path to your db package
 	"autotools-golang-api/kubecloudsinc/server"
+
 	"log"
 	"os"
+
+	"github.com/joho/godotenv"
 )
 
-func main() {
-	dsn := os.Getenv("DATABASE_DSN")
+var dsn string
+
+func init() {
+	_ = godotenv.Load()
+	dsn = os.Getenv("DATABASE_DSN")
 	if dsn == "" {
 		log.Fatal("DATABASE_DSN is not set")
 	}
-
+}
+func main() {
 	err := dbs.InitDB(dsn)
 	if err != nil {
 		log.Fatal("Failed to connect to the database:", err)
