@@ -6,7 +6,9 @@ The Employee Management API provides a set of endpoints for managing employee re
 
 ### **Generate Login Token**
 **Endpoint:** /v2/login
+
 **Method:** POST
+
 **Description:** Authenticates users and provides a token for accessing protected endpoints. This endpoint does not require pre-existing authorization but returns credentials needed for further API interactions.
 
 ### **Get Employees**
