@@ -1,8 +1,8 @@
-Employee Management API
+KubeCloudsInc Employee Management API
 
 The Employee Management API provides a set of endpoints for managing employee records. This API includes functionalities for user authentication, retrieving employee details, adding new employees, and updating existing employee information.
 
-Endpoints Overview
+Endpoints Overview:
 
 Login
 Endpoint: /v2/login
