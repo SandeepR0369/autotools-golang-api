@@ -141,6 +141,7 @@ func IsAuthorized(requiredRoles ...string) func(http.HandlerFunc) http.HandlerFu
 
 			if !roleIsAllowed {
 				msg := fmt.Sprintf("Insufficient permissions: user role %s is not allowed", claims.Role)
+				log.Printf("Insufficient permissions: user role %s is not allowed", claims.Role)
 				http.Error(w, msg, http.StatusForbidden)
 				return
 			}

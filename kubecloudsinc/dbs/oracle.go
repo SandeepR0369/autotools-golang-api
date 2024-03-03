@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	_ "github.com/godror/godror"
-	// "github.com/alexbrainman/odbc"
 )
 
 var (

@@ -3,13 +3,12 @@ package handler
 import (
 	"autotools-golang-api/kubecloudsinc/dbs"
 	"autotools-golang-api/kubecloudsinc/schema"
+
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
-
-	//"kubecloudsinc/Schema"
-	"encoding/json"
 
 	"github.com/gorilla/mux"
 )

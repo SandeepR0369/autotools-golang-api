@@ -6,12 +6,14 @@ import (
 	"autotools-golang-api/kubecloudsinc/dbs" // Replace with the path to your db package
 	"autotools-golang-api/kubecloudsinc/server"
 	"log"
+	"os"
 )
 
 func main() {
-	// Example DSN (replace with actual values)
-
-	dsn := "admin/admin123@10.13.18.130:1521/fff"
+	dsn := os.Getenv("DATABASE_DSN")
+	if dsn == "" {
+		log.Fatal("DATABASE_DSN is not set")
+	}
 
 	err := dbs.InitDB(dsn)
 	if err != nil {
