@@ -13,9 +13,14 @@ func NewRouter() *mux.Router {
 	r := mux.NewRouter()
 
 	// Public route
-	r.HandleFunc("/login", middleware.Login).Methods("POST")
+	r.HandleFunc("/v2/login", middleware.Login).Methods("POST")
 	// r.HandleFunc("/employees",middleware.IsAuthorized(handler.GetEmployees, "admin")).Methods("GET")
-	r.HandleFunc("/employees", middleware.IsAuthorized("admin")(handler.GetEmployees)).Methods("GET")
+	r.HandleFunc("/v2/employees", middleware.IsAuthorized("admin", "editor", "viewer")(handler.GetEmployees)).Methods("GET")
+	r.HandleFunc("/v2/employee", middleware.IsAuthorized("admin", "editor", "viewer")(handler.GetEmployee)).Methods("GET")
+	r.HandleFunc("/v2/employee", middleware.IsAuthorized("admin", "editor")(handler.AddEmployee)).Methods("POST")
+	r.HandleFunc("/v2/employee/{employeeId}", middleware.IsAuthorized("admin", "editor")(handler.UpdateEmployee)).Methods("PUT")
+	r.HandleFunc("/v2/employee/{employeeId}", middleware.IsAuthorized("admin")(handler.DeleteEmployee)).Methods("DELETE")
+
 	return r
 }
 

@@ -1,9 +1,8 @@
 package schema
 
-import (
-   // "database/sql"
-    // Include other imports as needed
-)
+// "database/sql"
+// Include other imports as needed
+
 // type Employee struct {
 // 	EmployeeID    int     `json:"employeeId"`
 // 	FirstName     string  `json:"firstName"`
@@ -19,15 +18,15 @@ import (
 // }
 
 type Employee struct {
-    EmployeeId   int        `json:"employeeId"`
-    FirstName    string     `json:"firstName"`
-    LastName     string     `json:"lastName"`
-    Email        string     `json:"email"`
-    Phone        string     `json:"phone"`
-    HireDate     string  `json:"hireDate"`
-    JobId        string     `json:"jobId"`
-    Salary       float64    `json:"salary"`
-    CommissionPct *float64  `json:"commissionPct"` // Use pointer for nullable field
-    ManagerId    *int       `json:"managerId"`    // Use pointer for nullable field
-    DepartmentId *int        `json:"departmentId"`
+	EmployeeId    *int     `json:"employeeId"`
+	FirstName     *string  `json:"firstName"`
+	LastName      *string  `json:"lastName"`
+	Email         *string  `json:"email"`
+	Phone         *string  `json:"phone"`
+	HireDate      *string  `json:"hireDate"`
+	JobId         *string  `json:"jobId"`
+	Salary        *float64 `json:"salary"`
+	CommissionPct *float64 `json:"commissionPct"`
+	ManagerId     *int     `json:"managerId"`
+	DepartmentId  *int     `json:"departmentId"`
 }
