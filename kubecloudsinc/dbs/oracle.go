@@ -1,5 +1,3 @@
-// db/connection.go
-
 package dbs
 
 import (
@@ -7,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 
 	_ "github.com/godror/godror"
@@ -23,18 +22,17 @@ type Employees schema.Employee
 func InitDB(dsn string) error {
 	var err error
 	DB, err = sql.Open("godror", dsn)
-	//DB, _ := odbc.Connect("ODBC",dsn)
 	if err != nil {
-		return err
+		log.Fatalf("Error opening database connection: %v", err)
 	}
 
 	// Check the connection
 	err = DB.Ping()
 	if err != nil {
-		return err
+		log.Fatalf("Error connecting to the database: %v", err)
 	}
 
-	fmt.Println("Database connection established")
+	log.Println("Database connection established")
 	return nil
 }
 
@@ -57,19 +55,16 @@ func QueryEmployees(db *sql.DB) ([]Employees, error) {
 		var commissionPct sql.NullFloat64
 		err := rows.Scan(&emp.EmployeeId, &emp.FirstName, &emp.LastName, &emp.Email, &emp.Phone, &emp.HireDate, &emp.JobId, &emp.Salary, &commissionPct, &emp.ManagerId, &emp.DepartmentId)
 		if err != nil {
+			log.Printf("Error scanning row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %v", err)
 		}
-		// Handle the nullable commission_pct
-		// if commissionPct.Valid {
-		// 	emp.CommissionPct = commissionPct.Float64
-		// } else {
-		// 	emp.CommissionPct = nil
-		// }
+
 		employees = append(employees, emp)
 	}
 
 	// Check for errors from iterating over rows
 	if err = rows.Err(); err != nil {
+		log.Printf("Error iterating rows: %v", err)
 		return nil, fmt.Errorf("error iterating rows: %v", err)
 	}
 
@@ -116,12 +111,14 @@ func QueryEmployee(db *sql.DB, employeeId int, lastName string) ([]Employees, er
 		var commissionPct sql.NullFloat64
 		err := rows.Scan(&emp.EmployeeId, &emp.FirstName, &emp.LastName, &emp.Email, &emp.Phone, &emp.HireDate, &emp.JobId, &emp.Salary, &commissionPct, &emp.ManagerId, &emp.DepartmentId)
 		if err != nil {
+			log.Printf("Error scanning row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %v", err)
 		}
 		employees = append(employees, emp)
 	}
 
 	if err = rows.Err(); err != nil {
+		log.Printf("Error iterating rows: %v", err)
 		return nil, fmt.Errorf("error iterating rows: %v", err)
 	}
 
@@ -151,8 +148,8 @@ func InsertEmployee(db *sql.DB, emp Employees) (int, error) {
 		sql.Out{Dest: &returnedEmployeeId}, // For capturing the RETURNING value
 	}
 
-	_, err := db.Exec(query, args...)
-	if err != nil {
+	if _, err := db.Exec(query, args...); err != nil {
+		log.Printf("Failed to insert employee: %v", err)
 		return 0, fmt.Errorf("failed to insert employee: %v", err)
 	}
 
@@ -160,7 +157,7 @@ func InsertEmployee(db *sql.DB, emp Employees) (int, error) {
 		return *emp.EmployeeId, nil
 	}
 
-	return 0, errors.New("employee ID is nil")
+	return 0, errors.New("failed to insert employee")
 }
 
 func UpdateEmployeeDB(db *sql.DB, employeeId int, emp Employees) error {
@@ -202,21 +199,22 @@ func UpdateEmployeeDB(db *sql.DB, employeeId int, emp Employees) error {
 	args = append(args, employeeId)
 
 	// Execute the update
-	_, err := db.Exec(query, args...)
-	if err != nil {
+	if _, err := db.Exec(query, args...); err != nil {
+		log.Printf("Failed to update employee: %v", err)
 		return fmt.Errorf("failed to update employee: %v", err)
 	}
 
+	log.Printf("Employee with ID %d updated successfully", employeeId)
 	return nil
 }
 
 func DeleteEmployeeByID(db *sql.DB, employeeId int) error {
-	// Implement the database call to delete the employee record.
-	// Using named placeholder syntax for Oracle
-	_, err := db.Exec("DELETE FROM employees WHERE employee_id = :1", employeeId)
-	if err != nil {
-		return err
+	if _, err := db.Exec("DELETE FROM employees WHERE employee_id = :1", employeeId); err != nil {
+		log.Printf("Failed to delete employee: %v", err)
+		return fmt.Errorf("failed to delete employee: %v", err)
 	}
+
+	log.Printf("Employee with ID %d deleted successfully", employeeId)
 	return nil
 }
 
