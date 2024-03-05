@@ -73,4 +73,7 @@ Responses to unsuccessful requests will include an appropriate HTTP status code 
 
 ### **Docker**
 docker build -t kube .
-docker run -d -p 8080:8080 -e DATABASE_DSN="admin/Jaffa123@10.10.12.130:1521/GHGWE1" kube
+
+docker run -d -p 8080:8080 -e DATABASE_DSN="admin/Jaffa123@10.10.12.130:1521/GHGWE1" kube   
+
+Note: `admin/Jaffa123@10.10.12.130:1521/GHGWE1` is a dummy DSN, please replace it with actual one while running/testing
