@@ -70,3 +70,7 @@ Access to most endpoints requires authorization. After logging in, users will re
 
 ### **Error Handling**
 Responses to unsuccessful requests will include an appropriate HTTP status code and a JSON object containing an error message. Clients should handle these responses gracefully.
+
+### **Docker**
+docker build -t kube .
+docker run -d -p 8080:8080 -e DATABASE_DSN="admin/Jaffa123@10.10.12.130:1521/GHGWE1" kube
