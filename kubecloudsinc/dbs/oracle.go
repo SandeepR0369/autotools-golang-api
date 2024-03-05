@@ -94,8 +94,9 @@ func QueryEmployee(db *sql.DB, employeeId int, lastName string) ([]Employees, er
 		conditions = append(conditions, "employee_id = :1")
 		queryParams = append(queryParams, employeeId)
 	}
+
 	if lastName != "" {
-		conditions = append(conditions, "last_name LIKE ?")
+		conditions = append(conditions, "last_name LIKE :2")
 		queryParams = append(queryParams, "%"+lastName+"%")
 	}
 
@@ -326,7 +327,51 @@ func DebugQuery(query string, params []interface{}) string {
 // 	}
 // 	return nil
 // }
+/*
+func GetEmployeeProfileByID(db *sql.DB, employeeID int) (*Employees, error) {
+	query := `SELECT e.employee_id, e.first_name, e.last_name, e.email, e.phone_number, e.salary,
+                    e.manager_id, e.job_id, d.department_id, d.department_name,
+                    m.first_name || ' ' || m.last_name as manager_name,
+                    l.location_id, l.street_address, l.postal_code, l.city, l.state_province,
+                    c.country_id, c.country_name, r.region_id, r.region_name,
+                    jh.start_date, jh.end_date, jh.job_id as job_history_id
+             FROM employees e
+             JOIN employees m ON e.manager_id = m.employee_id
+             JOIN jobs j ON j.job_id = e.job_id
+             JOIN job_history jh ON jh.employee_id = e.employee_id
+             JOIN departments d ON d.department_id = e.department_id
+             JOIN locations l ON d.location_id = l.location_id
+             JOIN countries c ON c.country_id = l.country_id
+             JOIN regions r ON c.region_id = r.region_id
+             WHERE e.employee_id = :1`
 
+	var emp Employees
+
+	err := db.QueryRow(query, employeeID).Scan(&emp.EmployeeID, &emp.FirstName, &emp.LastName, &emp.Email,
+		&emp.PhoneNumber, &emp.Salary, &emp.ManagerID, &emp.JobID, &emp.DepartmentID, &dept.DepartmentName,
+		&mgr.FirstName, &mgr.LastName, &loc.LocationID, &loc.StreetAddress, &loc.PostalCode, &loc.City,
+		&loc.StateProvince, &country.CountryID, &country.CountryName, &region.RegionID, &region.RegionName,
+		&jobHistory.StartDate, &jobHistory.EndDate, &jobHistory.JobID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("employee with ID %d not found", employeeID)
+		}
+		return nil, err
+	}
+
+	// Check for null values and assign appropriate values to pointers
+	if emp.FirstName == nil {
+		emp.FirstName = new(string) // Initialize pointer if it's nil
+	}
+	if emp.LastName == nil {
+		emp.LastName = new(string)
+	}
+
+	// Additional processing if needed (e.g., constructing composite fields)
+	// Return the employee details
+	return &emp, nil
+}
+*/
 func checkEmployeeExistence(db *sql.DB, employeeId int, lastName string) error {
 	// Initialize the SQL query string and parameters slice
 	query := "SELECT COUNT(employee_id) FROM employees WHERE 1=1"
