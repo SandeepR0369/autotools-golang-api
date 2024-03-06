@@ -19,6 +19,12 @@ var (
 )
 
 type Employees schema.Employee
+type EmployeeProfile schema.EmployeeProfile
+
+type NullableFloat64 struct {
+	Float64 float64
+	Valid   bool
+}
 
 // InitDB initializes the database connection using the provided DSN
 func InitDB(dsn string) error {
@@ -289,89 +295,190 @@ func DeleteEmployeeByID(db *sql.DB, employeeId int) error {
 	return nil
 }
 
-func PrintEmployees(employees []Employees) {
-	for _, emp := range employees {
-		fmt.Printf("ID: %d, Name: %s %s, Email: %s, Phone: %s, Hire Date: %s, Job ID: %s, Salary: %.2f, Commission Pct: %v, Manager ID: %d, Department ID: %d\n",
-			emp.EmployeeId, emp.FirstName, emp.LastName, emp.Email, emp.Phone, emp.HireDate, emp.JobId, emp.Salary, emp.CommissionPct, emp.ManagerId, emp.DepartmentId)
-	}
-}
+// Assuming schema and EmployeeProfile structs are defined properly
 
-func DebugQuery(query string, params []interface{}) string {
-	var buffer bytes.Buffer
-	n := 0
-	paramIndex := 1 // Starting index for named parameters
-	for _, p := range params {
-		namedParam := fmt.Sprintf(":%d", paramIndex)
-		pos := strings.Index(query[n:], namedParam)
-		if pos == -1 {
-			break
-		}
-		buffer.WriteString(query[n : n+pos])
-		buffer.WriteString(fmt.Sprintf("'%v'", p))
-		n += pos + len(namedParam)
-		paramIndex++
-	}
-	buffer.WriteString(query[n:])
-	return buffer.String()
-}
+func GetEmployeeProfile(db *sql.DB, employeeId int) (*EmployeeProfile, error) {
+	log.Printf("Making a DB call to fetch employee profile with ID: %d", employeeId)
 
-// func checkEmployeeExistence(db *sql.DB, employeeId int) error {
-// 	var count int
-// 	err := db.QueryRow("SELECT COUNT(employee_id) FROM employees WHERE employee_id = :1", employeeId).Scan(&count)
-// 	if err != nil {
-// 		log.Printf("Error checking employee existence: %v", err)
-// 		return fmt.Errorf("error checking employee existence: %v", err)
-// 	}
-// 	if count == 0 {
-// 		return fmt.Errorf("employee with ID %d not found", employeeId)
-// 	}
-// 	return nil
-// }
-/*
-func GetEmployeeProfileByID(db *sql.DB, employeeID int) (*Employees, error) {
-	query := `SELECT e.employee_id, e.first_name, e.last_name, e.email, e.phone_number, e.salary,
-                    e.manager_id, e.job_id, d.department_id, d.department_name,
-                    m.first_name || ' ' || m.last_name as manager_name,
-                    l.location_id, l.street_address, l.postal_code, l.city, l.state_province,
-                    c.country_id, c.country_name, r.region_id, r.region_name,
-                    jh.start_date, jh.end_date, jh.job_id as job_history_id
-             FROM employees e
-             JOIN employees m ON e.manager_id = m.employee_id
-             JOIN jobs j ON j.job_id = e.job_id
-             JOIN job_history jh ON jh.employee_id = e.employee_id
-             JOIN departments d ON d.department_id = e.department_id
-             JOIN locations l ON d.location_id = l.location_id
-             JOIN countries c ON c.country_id = l.country_id
-             JOIN regions r ON c.region_id = r.region_id
-             WHERE e.employee_id = :1`
-
-	var emp Employees
-
-	err := db.QueryRow(query, employeeID).Scan(&emp.EmployeeID, &emp.FirstName, &emp.LastName, &emp.Email,
-		&emp.PhoneNumber, &emp.Salary, &emp.ManagerID, &emp.JobID, &emp.DepartmentID, &dept.DepartmentName,
-		&mgr.FirstName, &mgr.LastName, &loc.LocationID, &loc.StreetAddress, &loc.PostalCode, &loc.City,
-		&loc.StateProvince, &country.CountryID, &country.CountryName, &region.RegionID, &region.RegionName,
-		&jobHistory.StartDate, &jobHistory.EndDate, &jobHistory.JobID)
+	// First, check if the employee exists
+	err := checkEmployeeExistence(db, employeeId, "")
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("employee with ID %d not found", employeeID)
-		}
 		return nil, err
 	}
 
-	// Check for null values and assign appropriate values to pointers
-	if emp.FirstName == nil {
-		emp.FirstName = new(string) // Initialize pointer if it's nil
+	query := `
+        SELECT e.employee_id,
+            e.first_name,
+            e.last_name,
+            e.email,
+            e.phone_number,
+            e.salary,
+            e.commission_pct,
+            e.job_id,
+            j.job_title,
+            e.hire_date,
+            d.department_id,
+            d.department_name,
+            e.manager_id,
+            m.first_name AS manager_firstName,
+            m.last_name AS manager_lastName,
+            l.location_id,
+            l.street_address,
+            l.postal_code,
+            l.city,
+            l.state_province,
+            c.country_id,
+            c.country_name,
+            r.region_id,
+            r.region_name,
+            jb.job_title as job_history_title,
+            jh.start_date,
+            jh.end_date,
+            jh.job_id AS job_history_id
+        FROM EMPLOYEES e
+        JOIN EMPLOYEES m ON e.manager_id = m.employee_id
+        JOIN JOBS j ON j.job_id = e.job_id
+        JOIN JOB_HISTORY jh ON jh.employee_id = e.employee_id
+        JOIN JOBS jb ON jb.job_id = jh.job_id
+        JOIN DEPARTMENTS d ON d.department_id = e.department_id
+        JOIN LOCATIONS l ON d.location_id = l.location_id
+        JOIN COUNTRIES c ON c.country_id = l.country_id
+        JOIN REGIONS r ON c.region_id = r.region_id
+        WHERE e.employee_id = :1
+    `
+	rows, err := db.Query(query, employeeId)
+	if err != nil {
+		return nil, err
 	}
-	if emp.LastName == nil {
-		emp.LastName = new(string)
+	defer rows.Close()
+
+	employeeProfile := &EmployeeProfile{
+		JobDetails: &schema.JobDetails{},
 	}
 
-	// Additional processing if needed (e.g., constructing composite fields)
-	// Return the employee details
-	return &emp, nil
+	for rows.Next() {
+		var (
+			managerFirstName, managerLastName, departmentName, countryName, regionName, jobHistoryTitle string
+			hireDate, startDate, endDate, jobTitle                                                      string
+			departmentId, locationId, regionId                                                          int
+			streetAddress, postalCode, city, stateProvince, countryId, jobId, jobHistoryId              string
+			commissionPct                                                                               sql.NullFloat64
+			salary                                                                                      sql.NullFloat64 // Change to sql.NullFloat64
+		)
+
+		err := rows.Scan(
+			&employeeProfile.EmployeeId,
+			&employeeProfile.FirstName,
+			&employeeProfile.LastName,
+			&employeeProfile.Email,
+			&employeeProfile.Phone,
+			&salary,
+			&commissionPct,
+			&jobId,
+			&jobTitle,
+			&hireDate,
+			&departmentId,
+			&departmentName,
+			&employeeProfile.ManagerId,
+			&managerFirstName,
+			&managerLastName,
+			&locationId,
+			&streetAddress,
+			&postalCode,
+			&city,
+			&stateProvince,
+			&countryId,
+			&countryName,
+			&regionId,
+			&regionName,
+			&jobHistoryTitle,
+			&startDate,
+			&endDate,
+			&jobHistoryId,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// Set the commission percentage
+		employeeProfile.CommissionPct = &commissionPct
+
+		// Set the commission percentage
+		var commission NullableFloat64
+		if commissionPct.Valid {
+			commission.Float64 = commissionPct.Float64
+			commission.Valid = true
+		}
+
+		// Set the salary
+		if salary.Valid {
+			employeeProfile.Salary = &salary.Float64
+		}
+
+		// Create a new job
+		job := &schema.Job{
+			JobId:          &jobId,
+			JobTitle:       &jobTitle,
+			HireDate:       &hireDate,
+			DepartmentName: &departmentName,
+			Salary:         employeeProfile.Salary, // Use the Salary from EmployeeProfile
+			DepartmentId:   &departmentId,
+		}
+
+		// Check if the job exists in the jobDetails.Jobs slice
+		var existingJob *schema.Job
+		for _, j := range employeeProfile.JobDetails.Jobs {
+			if *j.JobId == jobId {
+				existingJob = j
+				break
+			}
+		}
+
+		// If the job doesn't exist, append it to the jobDetails.Jobs slice
+		if existingJob == nil {
+			employeeProfile.JobDetails.Jobs = append(employeeProfile.JobDetails.Jobs, job)
+			existingJob = job
+		}
+
+		// Append job history to the existing job
+		existingJob.JobHistory = append(existingJob.JobHistory, &schema.JobHistory{
+			JobTitle:  &jobHistoryTitle,
+			StartDate: &startDate,
+			EndDate:   &endDate,
+			JobId:     &jobHistoryId,
+		})
+
+		// Set manager details
+		employeeProfile.JobDetails.Manager = &schema.Manager{
+			ManagerFirst: &managerFirstName,
+			ManagerLast:  &managerLastName,
+		}
+
+		// Set department details
+		employeeProfile.JobDetails.Department = &schema.Department{
+			DepartmentId:   &departmentId,
+			DepartmentName: &departmentName,
+			Location: &schema.Location{
+				LocationId:    &locationId,
+				StreetAddress: &streetAddress,
+				PostalCode:    &postalCode,
+				City:          &city,
+				StateProvince: &stateProvince,
+				Country: &schema.Country{
+					CountryId:   &countryId,
+					CountryName: &countryName,
+					Region: &schema.Region{
+						RegionId:   &regionId,
+						RegionName: &regionName,
+					},
+				},
+			},
+		}
+	}
+
+	return employeeProfile, nil
 }
-*/
+
 func checkEmployeeExistence(db *sql.DB, employeeId int, lastName string) error {
 	// Initialize the SQL query string and parameters slice
 	query := "SELECT COUNT(employee_id) FROM employees WHERE 1=1"
@@ -398,4 +505,30 @@ func checkEmployeeExistence(db *sql.DB, employeeId int, lastName string) error {
 		return fmt.Errorf("employee not found")
 	}
 	return nil
+}
+
+func PrintEmployees(employees []Employees) {
+	for _, emp := range employees {
+		fmt.Printf("ID: %d, Name: %s %s, Email: %s, Phone: %s, Hire Date: %s, Job ID: %s, Salary: %.2f, Commission Pct: %v, Manager ID: %d, Department ID: %d\n",
+			emp.EmployeeId, emp.FirstName, emp.LastName, emp.Email, emp.Phone, emp.HireDate, emp.JobId, emp.Salary, emp.CommissionPct, emp.ManagerId, emp.DepartmentId)
+	}
+}
+
+func DebugQuery(query string, params []interface{}) string {
+	var buffer bytes.Buffer
+	n := 0
+	paramIndex := 1 // Starting index for named parameters
+	for _, p := range params {
+		namedParam := fmt.Sprintf(":%d", paramIndex)
+		pos := strings.Index(query[n:], namedParam)
+		if pos == -1 {
+			break
+		}
+		buffer.WriteString(query[n : n+pos])
+		buffer.WriteString(fmt.Sprintf("'%v'", p))
+		n += pos + len(namedParam)
+		paramIndex++
+	}
+	buffer.WriteString(query[n:])
+	return buffer.String()
 }

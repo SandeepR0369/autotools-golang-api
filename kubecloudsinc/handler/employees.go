@@ -159,3 +159,34 @@ func DeleteEmployee(w http.ResponseWriter, r *http.Request) {
 		utils.SendErrorResponse(w, r, http.StatusInternalServerError, err, "unique_error_id", "JSONEncodingError", "DeleteEmployee")
 	}
 }
+
+func GetEmployeeProfile(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	employeeIdStr := vars["employeeId"]
+	employeeId, err := strconv.Atoi(employeeIdStr)
+	if err != nil {
+		log.Printf("Error converting employee ID '%s' to integer: %v", employeeIdStr, err)
+		utils.SendErrorResponse(w, r, http.StatusBadRequest, err, "unique_error_id", "InvalidEmployeeIDFormat", "GetEmployeeProfile")
+		return
+	}
+
+	log.Printf("Attempting to get employee profile with ID: %d", employeeId)
+
+	// Query database to get employee profile
+	employeeProfile, err := dbs.GetEmployeeProfile(dbs.DB, employeeId)
+	if err != nil {
+		if err.Error() == "no record was found with provided identifiers" {
+			utils.SendErrorResponse(w, r, http.StatusNotFound, err, "unique_error_id", "NoMatchingRecordFound", "GetEmployeeProfile")
+		} else {
+			utils.SendErrorResponse(w, r, http.StatusInternalServerError, err, "unique_error_id", "QueryError", "GetEmployeeProfile")
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(employeeProfile); err != nil {
+		log.Printf("Error encoding employee profile to JSON: %v", err)
+		utils.SendErrorResponse(w, r, http.StatusInternalServerError, err, "unique_error_id", "JSONEncodingError", "GetEmployeeProfile")
+		return
+	}
+}

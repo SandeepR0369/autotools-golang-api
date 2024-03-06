@@ -6,39 +6,35 @@ import (
 	"net/http"
 )
 
-// ErrorResponse represents the structure of the error response
+// Modified ErrorResponse to match the desired structure
 type ErrorResponse struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Code        string `json:"code"`
-	Description string `json:"description"`
-	Method      string `json:"method"`
-	Status      int    `json:"status"`
-	StatusCode  int    `json:"statusCode"`
-	Details     struct {
-		RequestID     string `json:"esrxRequestId"`
-		ErrorLocation string `json:"errorLocation"`
-	} `json:"details"`
+	Metadata struct {
+		ID                string `json:"id"`
+		Name              string `json:"name"`
+		Status            int    `json:"status"`
+		Method            string `json:"method"`
+		AdditionalDetails struct {
+			Description   string `json:"description"`
+			StatusCode    int    `json:"statusCode"`
+			Code          string `json:"code"`
+			EsrxRequestID string `json:"esrxRequestId"`
+			ErrorLocation string `json:"errorLocation"`
+		} `json:"AdditionalDetails"`
+	} `json:"metadata"`
 }
 
-// SendErrorResponse sends a JSON-encoded error response
+// SendErrorResponse sends a JSON-encoded error response with the new structure
 func SendErrorResponse(w http.ResponseWriter, r *http.Request, statusCode int, err error, errorID, errorCode, errorLocation string) {
-	resp := ErrorResponse{
-		ID:          errorID,
-		Name:        http.StatusText(statusCode),
-		Code:        errorCode,
-		Description: err.Error(),
-		Method:      r.Method,
-		Status:      statusCode,
-		StatusCode:  statusCode,
-		Details: struct {
-			RequestID     string `json:"esrxRequestId"`
-			ErrorLocation string `json:"errorLocation"`
-		}{
-			RequestID:     "someUniqueRequestID", // This should be a unique ID for the request
-			ErrorLocation: errorLocation,
-		},
-	}
+	resp := ErrorResponse{}
+	resp.Metadata.ID = errorID
+	resp.Metadata.Name = http.StatusText(statusCode)
+	resp.Metadata.Status = statusCode
+	resp.Metadata.Method = r.Method
+	resp.Metadata.AdditionalDetails.Description = err.Error()
+	resp.Metadata.AdditionalDetails.StatusCode = statusCode
+	resp.Metadata.AdditionalDetails.Code = errorCode
+	resp.Metadata.AdditionalDetails.EsrxRequestID = "someUniqueRequestID" // This should be dynamically generated or passed as an argument
+	resp.Metadata.AdditionalDetails.ErrorLocation = errorLocation
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
