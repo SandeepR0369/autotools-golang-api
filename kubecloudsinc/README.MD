@@ -29,6 +29,15 @@ The Employee Management API provides a set of endpoints for managing employee re
 
 **Description:** Retrieves detailed information for a specific employee. Users need to provide the employee's ID as a query parameter. Accessible by users with admin, editor, or viewer roles.
 
+### **Get EmployeeProfile**
+**Endpoint:** /v2/employee/{employeeId}
+
+**Method:** GET
+
+**Authorization Required:** admin, editor, viewer
+
+**Description:** Retrieves entire profile for a specific employee with Job History. Users need to provide the employee's ID as a query parameter. Accessible by users with admin, editor, or viewer roles.
+
 ### **Add Employee**
 **Endpoint:** /v2/employee
 
