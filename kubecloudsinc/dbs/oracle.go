@@ -450,6 +450,7 @@ func GetEmployeeProfile(db *sql.DB, employeeId int) (*EmployeeProfile, error) {
 
 		// Set manager details
 		employeeProfile.JobDetails.Manager = &schema.Manager{
+			ManagerId:    employeeProfile.ManagerId,
 			ManagerFirst: &managerFirstName,
 			ManagerLast:  &managerLastName,
 		}

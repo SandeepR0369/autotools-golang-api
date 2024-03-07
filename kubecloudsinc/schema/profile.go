@@ -3,7 +3,7 @@ package schema
 import "database/sql"
 
 type EmployeeProfile struct {
-	EmployeeId    *string          `json:"employeeId"`
+	EmployeeId    *int             `json:"employeeId"`
 	FirstName     *string          `json:"firstName"`
 	LastName      *string          `json:"lastName"`
 	Email         *string          `json:"email"`
@@ -38,7 +38,7 @@ type JobHistory struct {
 }
 
 type Manager struct {
-	ManagerId    *string `json:"managerId"`
+	ManagerId    *int    `json:"managerId"`
 	ManagerFirst *string `json:"managerFirst"`
 	ManagerLast  *string `json:"managerLast"`
 }
