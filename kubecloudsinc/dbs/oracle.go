@@ -307,44 +307,63 @@ func GetEmployeeProfile(db *sql.DB, employeeId int) (*EmployeeProfile, error) {
 	}
 
 	query := `
-        SELECT e.employee_id,
-            e.first_name,
-            e.last_name,
-            e.email,
-            e.phone_number,
-            e.salary,
-            e.commission_pct,
-            e.job_id,
-            j.job_title,
-            e.hire_date,
-            d.department_id,
-            d.department_name,
-            e.manager_id,
-            m.first_name AS manager_firstName,
-            m.last_name AS manager_lastName,
-            l.location_id,
-            l.street_address,
-            l.postal_code,
-            l.city,
-            l.state_province,
-            c.country_id,
-            c.country_name,
-            r.region_id,
-            r.region_name,
-            jb.job_title as job_history_title,
-            jh.start_date,
-            jh.end_date,
-            jh.job_id AS job_history_id
-        FROM EMPLOYEES e
-        JOIN EMPLOYEES m ON e.manager_id = m.employee_id
-        JOIN JOBS j ON j.job_id = e.job_id
-        JOIN JOB_HISTORY jh ON jh.employee_id = e.employee_id
-        JOIN JOBS jb ON jb.job_id = jh.job_id
-        JOIN DEPARTMENTS d ON d.department_id = e.department_id
-        JOIN LOCATIONS l ON d.location_id = l.location_id
-        JOIN COUNTRIES c ON c.country_id = l.country_id
-        JOIN REGIONS r ON c.region_id = r.region_id
-        WHERE e.employee_id = :1
+	SELECT
+    e.employee_id,
+    e.first_name,
+    e.last_name,
+    e.email,
+    e.phone_number,
+    e.salary,
+    e.commission_pct,
+    e.job_id,
+    j.job_title,
+    e.hire_date,
+    d.department_id,
+    d.department_name,
+    e.manager_id,
+    m.first_name AS manager_firstName,
+    m.last_name AS manager_lastName,
+    l.location_id,
+    l.street_address,
+    l.postal_code,
+    l.city,
+    l.state_province,
+    c.country_id,
+    c.country_name,
+    r.region_id,
+    r.region_name,
+    jh.job_title AS job_history_title,
+    jh.start_date,
+    jh.end_date,
+    jh.job_id AS job_history_id
+FROM
+    EMPLOYEES e
+JOIN
+    EMPLOYEES m ON e.manager_id = m.employee_id
+JOIN
+    JOBS j ON j.job_id = e.job_id
+JOIN
+    DEPARTMENTS d ON d.department_id = e.department_id
+JOIN
+    LOCATIONS l ON d.location_id = l.location_id
+JOIN
+    COUNTRIES c ON c.country_id = l.country_id
+JOIN
+    REGIONS r ON c.region_id = r.region_id
+LEFT JOIN (
+    SELECT
+        jh.employee_id,
+        j.job_title,
+        jh.start_date,
+        jh.end_date,
+        jh.job_id
+    FROM
+        JOB_HISTORY jh
+    JOIN
+        JOBS j ON j.job_id = jh.job_id
+) jh ON jh.employee_id = e.employee_id
+WHERE
+    e.employee_id = :1
     `
 	rows, err := db.Query(query, employeeId)
 	if err != nil {
@@ -359,7 +378,8 @@ func GetEmployeeProfile(db *sql.DB, employeeId int) (*EmployeeProfile, error) {
 	for rows.Next() {
 		var (
 			managerFirstName, managerLastName, departmentName, countryName, regionName, jobHistoryTitle string
-			hireDate, startDate, endDate, jobTitle                                                      string
+			hireDate, jobTitle                                                                          string
+			startDate, endDate                                                                          sql.NullString
 			departmentId, locationId, regionId                                                          int
 			streetAddress, postalCode, city, stateProvince, countryId, jobId, jobHistoryId              string
 			commissionPct                                                                               sql.NullFloat64
@@ -410,6 +430,18 @@ func GetEmployeeProfile(db *sql.DB, employeeId int) (*EmployeeProfile, error) {
 			commission.Valid = true
 		}
 
+		var startDatePtr *string
+		if startDate.Valid {
+			startDateValue := startDate.String
+			startDatePtr = &startDateValue
+		}
+
+		var endDatePtr *string
+		if endDate.Valid {
+			endDateValue := endDate.String
+			endDatePtr = &endDateValue
+		}
+
 		// Set the salary
 		if salary.Valid {
 			employeeProfile.Salary = &salary.Float64
@@ -443,8 +475,8 @@ func GetEmployeeProfile(db *sql.DB, employeeId int) (*EmployeeProfile, error) {
 		// Append job history to the existing job
 		existingJob.JobHistory = append(existingJob.JobHistory, &schema.JobHistory{
 			JobTitle:  &jobHistoryTitle,
-			StartDate: &startDate,
-			EndDate:   &endDate,
+			StartDate: startDatePtr,
+			EndDate:   endDatePtr,
 			JobId:     &jobHistoryId,
 		})
 
