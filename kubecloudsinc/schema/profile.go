@@ -1,17 +1,15 @@
 package schema
 
-import "database/sql"
-
 type EmployeeProfile struct {
-	EmployeeId    *int             `json:"employeeId"`
-	FirstName     *string          `json:"firstName"`
-	LastName      *string          `json:"lastName"`
-	Email         *string          `json:"email"`
-	Phone         *string          `json:"phone"`
-	Salary        *float64         `json:"salary"`
-	CommissionPct *sql.NullFloat64 `json:"commissionPct,omitempty"`
-	ManagerId     *int             `json:"managerId"`
-	JobDetails    *JobDetails      `json:"job_details,omitempty"`
+	EmployeeId    *int        `json:"employeeId"`
+	FirstName     *string     `json:"firstName"`
+	LastName      *string     `json:"lastName"`
+	Email         *string     `json:"email"`
+	Phone         *string     `json:"phone"`
+	Salary        *float64    `json:"salary"`
+	CommissionPct *float64    `json:"commissionPct,omitempty"`
+	ManagerId     *int        `json:"managerId"`
+	JobDetails    *JobDetails `json:"job_details,omitempty"`
 }
 
 type JobDetails struct {

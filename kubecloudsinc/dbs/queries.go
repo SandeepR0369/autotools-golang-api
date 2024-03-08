@@ -3,6 +3,7 @@ package dbs
 import (
 	schema "autotools-golang-api/kubecloudsinc/schema"
 	"bytes"
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -45,12 +46,15 @@ func InitDB(dsn string) error {
 }
 
 func QueryEmployees(db *sql.DB) ([]Employees, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
 	log.Println("Making a DB call to get all employees")
 	// Define the SQL query
 	query := `SELECT employee_id, first_name, last_name, email, phone_number, hire_date, job_id, salary, commission_pct, manager_id, department_id FROM employees`
 
 	// Execute the query
-	rows, err := db.Query(query)
+	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("query failed: %v", err)
 	}
@@ -81,6 +85,9 @@ func QueryEmployees(db *sql.DB) ([]Employees, error) {
 }
 
 func QueryEmployee(db *sql.DB, employeeId int, lastName string) ([]Employees, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
 	log.Println("Making a DB call to get employee")
 
 	// First, check if the employee exists
@@ -120,7 +127,7 @@ func QueryEmployee(db *sql.DB, employeeId int, lastName string) ([]Employees, er
 	log.Println("Debug Query:", debugQuery)
 
 	// Execute the query using the built query string and parameters
-	rows, err := db.Query(baseQuery, queryParams...)
+	rows, err := db.QueryContext(ctx, baseQuery, queryParams...)
 	if err != nil {
 		log.Printf("Query failed: %v", err)
 		return nil, fmt.Errorf("query failed: %v", err)
@@ -147,6 +154,9 @@ func QueryEmployee(db *sql.DB, employeeId int, lastName string) ([]Employees, er
 }
 
 func InsertEmployee(db *sql.DB, emp Employees) (int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
 	log.Printf("Making a DB call to insert employee")
 	query := `INSERT INTO employees (employee_id, first_name, last_name, email, phone_number, hire_date, job_id, salary, commission_pct, manager_id, department_id)
               VALUES (:1, :2, :3, :4, :5, TO_DATE(:6, 'YYYY-MM-DD HH24:MI:SS'), :7, :8, :9, :10, :11) RETURNING employee_id INTO :12`
@@ -169,7 +179,7 @@ func InsertEmployee(db *sql.DB, emp Employees) (int, error) {
 		sql.Out{Dest: &returnedEmployeeId}, // For capturing the RETURNING value
 	}
 
-	if _, err := db.Exec(query, args...); err != nil {
+	if _, err := db.ExecContext(ctx, query, args...); err != nil {
 		log.Printf("Failed to insert employee: %v", err)
 		return 0, fmt.Errorf("failed to insert employee: %v", err)
 	}
@@ -182,6 +192,9 @@ func InsertEmployee(db *sql.DB, emp Employees) (int, error) {
 }
 
 func UpdateEmployeeDB(db *sql.DB, employeeId int, emp Employees) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
 	log.Printf("Making a DB call to update employeeId: %d", employeeId)
 	// First, check if the employee exists
 	err := checkEmployeeExistence(db, employeeId, "")
@@ -240,7 +253,7 @@ func UpdateEmployeeDB(db *sql.DB, employeeId int, emp Employees) error {
 	debugQuery := DebugQuery(query, args)
 	log.Println("Debug Query Update:", debugQuery)
 	// Execute the update
-	result, err := db.Exec(query, args...)
+	result, err := db.ExecContext(ctx, query, args...)
 	if err != nil {
 		log.Printf("Failed to update employee: %v", err)
 		return fmt.Errorf("failed to update employee: %v", err)
@@ -263,20 +276,23 @@ func UpdateEmployeeDB(db *sql.DB, employeeId int, emp Employees) error {
 }
 
 func DeleteEmployeeByID(db *sql.DB, employeeId int) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
 	// First, check if the employee exists
 	err := checkEmployeeExistence(db, employeeId, "")
 	if err != nil {
 		return err
 	}
 
-	log.Printf("Attempting to delete employee with ID: %d", employeeId)
-	tx, err := db.Begin()
+	log.Printf("Making a DB call to delete employee with ID: %d", employeeId)
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		log.Printf("Failed to start transaction: %v", err)
 		return fmt.Errorf("failed to start transaction: %v", err)
 	}
 
-	_, err = tx.Exec("DELETE FROM employees WHERE employee_id = :1", employeeId)
+	_, err = tx.ExecContext(ctx, "DELETE FROM employees WHERE employee_id = :1", employeeId)
 	if err != nil {
 		rbErr := tx.Rollback()
 		if rbErr != nil {
@@ -295,9 +311,10 @@ func DeleteEmployeeByID(db *sql.DB, employeeId int) error {
 	return nil
 }
 
-// Assuming schema and EmployeeProfile structs are defined properly
-
 func GetEmployeeProfile(db *sql.DB, employeeId int) (*EmployeeProfile, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
 	log.Printf("Making a DB call to fetch employee profile with ID: %d", employeeId)
 
 	// First, check if the employee exists
@@ -346,7 +363,7 @@ func GetEmployeeProfile(db *sql.DB, employeeId int) (*EmployeeProfile, error) {
         JOIN REGIONS r ON c.region_id = r.region_id
         WHERE e.employee_id = :1
     `
-	rows, err := db.Query(query, employeeId)
+	rows, err := db.QueryContext(ctx, query, employeeId)
 	if err != nil {
 		return nil, err
 	}
@@ -401,19 +418,9 @@ func GetEmployeeProfile(db *sql.DB, employeeId int) (*EmployeeProfile, error) {
 		}
 
 		// Set the commission percentage
-		employeeProfile.CommissionPct = &commissionPct
-
-		// Set the commission percentage
-		var commission NullableFloat64
-		if commissionPct.Valid {
-			commission.Float64 = commissionPct.Float64
-			commission.Valid = true
-		}
-
+		employeeProfile.CommissionPct = &commissionPct.Float64
 		// Set the salary
-		if salary.Valid {
-			employeeProfile.Salary = &salary.Float64
-		}
+		employeeProfile.Salary = &salary.Float64
 
 		// Create a new job
 		job := &schema.Job{
