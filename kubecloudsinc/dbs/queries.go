@@ -12,6 +12,7 @@ import (
 	"time"
 
 	_ "github.com/godror/godror"
+	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
 var (
@@ -45,9 +46,17 @@ func InitDB(dsn string) error {
 	return nil
 }
 
-func QueryEmployees(db *sql.DB) ([]Employees, error) {
+func QueryEmployees(txn *newrelic.Transaction, db *sql.DB) ([]Employees, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
+
+	segment := newrelic.DatastoreSegment{
+		StartTime:  newrelic.StartSegmentNow(txn),
+		Product:    newrelic.DatastoreMySQL, // Adjust for your database
+		Collection: "employees",
+		Operation:  "SELECT",
+	}
+	defer segment.End()
 
 	log.Println("Making a DB call to get all employees")
 	// Define the SQL query
@@ -84,9 +93,17 @@ func QueryEmployees(db *sql.DB) ([]Employees, error) {
 	return employees, nil
 }
 
-func QueryEmployee(db *sql.DB, employeeId int, lastName string) ([]Employees, error) {
+func QueryEmployee(txn *newrelic.Transaction, db *sql.DB, employeeId int, lastName string) ([]Employees, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
+
+	segment := newrelic.DatastoreSegment{
+		StartTime:  newrelic.StartSegmentNow(txn),
+		Product:    newrelic.DatastoreMySQL, // Adjust for your database
+		Collection: "employees",
+		Operation:  "SELECT",
+	}
+	defer segment.End()
 
 	log.Println("Making a DB call to get employee")
 
@@ -153,9 +170,17 @@ func QueryEmployee(db *sql.DB, employeeId int, lastName string) ([]Employees, er
 	return employees, nil
 }
 
-func InsertEmployee(db *sql.DB, emp Employees) (int, error) {
+func InsertEmployee(txn *newrelic.Transaction, db *sql.DB, emp Employees) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
+
+	segment := newrelic.DatastoreSegment{
+		StartTime:  newrelic.StartSegmentNow(txn),
+		Product:    newrelic.DatastoreMySQL, // Adjust based on your actual database
+		Collection: "employees",
+		Operation:  "INSERT",
+	}
+	defer segment.End()
 
 	log.Printf("Making a DB call to insert employee")
 	query := `INSERT INTO employees (employee_id, first_name, last_name, email, phone_number, hire_date, job_id, salary, commission_pct, manager_id, department_id)
@@ -191,9 +216,17 @@ func InsertEmployee(db *sql.DB, emp Employees) (int, error) {
 	return 0, errors.New("failed to insert employee")
 }
 
-func UpdateEmployeeDB(db *sql.DB, employeeId int, emp Employees) error {
+func UpdateEmployeeDB(txn *newrelic.Transaction, db *sql.DB, employeeId int, emp Employees) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
+
+	segment := newrelic.DatastoreSegment{
+		StartTime:  newrelic.StartSegmentNow(txn),
+		Product:    newrelic.DatastoreMySQL, // Adjust for your database
+		Collection: "employees",
+		Operation:  "UPDATE",
+	}
+	defer segment.End()
 
 	log.Printf("Making a DB call to update employeeId: %d", employeeId)
 	// First, check if the employee exists
@@ -247,7 +280,6 @@ func UpdateEmployeeDB(db *sql.DB, employeeId int, emp Employees) error {
 	query += strings.Join(updates, ", ")
 	query += fmt.Sprintf(" WHERE employee_id = :%d", argCount)
 	args = append(args, employeeId)
-	log.Println("JAFFA1")
 
 	// Debugging: Log the final query and parameters
 	debugQuery := DebugQuery(query, args)
@@ -275,9 +307,17 @@ func UpdateEmployeeDB(db *sql.DB, employeeId int, emp Employees) error {
 	return nil
 }
 
-func DeleteEmployeeByID(db *sql.DB, employeeId int) error {
+func DeleteEmployeeByID(txn *newrelic.Transaction, db *sql.DB, employeeId int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
+
+	segment := newrelic.DatastoreSegment{
+		StartTime:  newrelic.StartSegmentNow(txn),
+		Product:    newrelic.DatastoreMySQL,
+		Collection: "employees",
+		Operation:  "DELETE",
+	}
+	defer segment.End()
 
 	// First, check if the employee exists
 	err := checkEmployeeExistence(db, employeeId, "")
@@ -311,9 +351,17 @@ func DeleteEmployeeByID(db *sql.DB, employeeId int) error {
 	return nil
 }
 
-func GetEmployeeProfile(db *sql.DB, employeeId int) (*EmployeeProfile, error) {
+func GetEmployeeProfile(txn *newrelic.Transaction, db *sql.DB, employeeId int) (*EmployeeProfile, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
+
+	segment := newrelic.DatastoreSegment{
+		StartTime:  newrelic.StartSegmentNow(txn),
+		Product:    newrelic.DatastoreMySQL, // Adjust for your database
+		Collection: "employees",
+		Operation:  "SELECT",
+	}
+	defer segment.End()
 
 	log.Printf("Making a DB call to fetch employee profile with ID: %d", employeeId)
 
