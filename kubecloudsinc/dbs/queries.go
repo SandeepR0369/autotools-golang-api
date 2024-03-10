@@ -51,8 +51,8 @@ func QueryEmployees(txn *newrelic.Transaction, db *sql.DB) ([]Employees, error) 
 	defer cancel()
 
 	segment := newrelic.DatastoreSegment{
-		StartTime:  newrelic.StartSegmentNow(txn),
-		Product:    newrelic.DatastoreMySQL, // Adjust for your database
+		StartTime:  txn.StartSegmentNow(),
+		Product:    newrelic.DatastoreOracle,
 		Collection: "employees",
 		Operation:  "SELECT",
 	}
@@ -98,8 +98,8 @@ func QueryEmployee(txn *newrelic.Transaction, db *sql.DB, employeeId int, lastNa
 	defer cancel()
 
 	segment := newrelic.DatastoreSegment{
-		StartTime:  newrelic.StartSegmentNow(txn),
-		Product:    newrelic.DatastoreMySQL, // Adjust for your database
+		StartTime:  txn.StartSegmentNow(),
+		Product:    newrelic.DatastoreOracle,
 		Collection: "employees",
 		Operation:  "SELECT",
 	}
@@ -175,8 +175,8 @@ func InsertEmployee(txn *newrelic.Transaction, db *sql.DB, emp Employees) (int, 
 	defer cancel()
 
 	segment := newrelic.DatastoreSegment{
-		StartTime:  newrelic.StartSegmentNow(txn),
-		Product:    newrelic.DatastoreMySQL, // Adjust based on your actual database
+		StartTime:  txn.StartSegmentNow(),
+		Product:    newrelic.DatastoreOracle,
 		Collection: "employees",
 		Operation:  "INSERT",
 	}
@@ -221,8 +221,8 @@ func UpdateEmployeeDB(txn *newrelic.Transaction, db *sql.DB, employeeId int, emp
 	defer cancel()
 
 	segment := newrelic.DatastoreSegment{
-		StartTime:  newrelic.StartSegmentNow(txn),
-		Product:    newrelic.DatastoreMySQL, // Adjust for your database
+		StartTime:  txn.StartSegmentNow(),
+		Product:    newrelic.DatastoreOracle,
 		Collection: "employees",
 		Operation:  "UPDATE",
 	}
@@ -312,8 +312,8 @@ func DeleteEmployeeByID(txn *newrelic.Transaction, db *sql.DB, employeeId int) e
 	defer cancel()
 
 	segment := newrelic.DatastoreSegment{
-		StartTime:  newrelic.StartSegmentNow(txn),
-		Product:    newrelic.DatastoreMySQL,
+		StartTime:  txn.StartSegmentNow(),
+		Product:    newrelic.DatastoreOracle,
 		Collection: "employees",
 		Operation:  "DELETE",
 	}
@@ -356,8 +356,8 @@ func GetEmployeeProfile(txn *newrelic.Transaction, db *sql.DB, employeeId int) (
 	defer cancel()
 
 	segment := newrelic.DatastoreSegment{
-		StartTime:  newrelic.StartSegmentNow(txn),
-		Product:    newrelic.DatastoreMySQL, // Adjust for your database
+		StartTime:  txn.StartSegmentNow(),
+		Product:    newrelic.DatastoreOracle,
 		Collection: "employees",
 		Operation:  "SELECT",
 	}

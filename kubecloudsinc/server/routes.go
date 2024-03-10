@@ -15,26 +15,14 @@ import (
 func NewRouter(app *newrelic.Application) *mux.Router {
 	r := mux.NewRouter()
 	r.Use(middleware.NewRelicMiddleware(app))
+
 	r.HandleFunc("/v2/login", middleware.Login).Methods("POST")
-	//r.HandleFunc("/v2/login", middleware.NewRelicMiddleware(app, "/v2/login", middleware.Login)).Methods("POST")
-
 	r.HandleFunc("/v2/employees", middleware.IsAuthorized("admin", "editor", "viewer")(handler.GetEmployees)).Methods("GET")
-	//r.HandleFunc("/v2/employees", middleware.NewRelicMiddleware(app, "/v2/employees", middleware.IsAuthorized("admin", "editor", "viewer")(handler.GetEmployees))).Methods("GET")
-
 	r.HandleFunc("/v2/employee", middleware.IsAuthorized("admin", "editor", "viewer")(handler.GetEmployee)).Methods("GET")
-	//r.HandleFunc("/v2/employee", newrelic.WrapHandleFunc(app, "/v2/employee", middleware.IsAuthorized("admin", "editor", "viewer")(handler.GetEmployee))).Methods("GET")
-
 	r.HandleFunc("/v2/employee/{employeeId}", middleware.IsAuthorized("admin", "editor", "viewer")(handler.GetEmployeeProfile)).Methods("GET")
-	//r.HandleFunc("/v2/employee/{employeeId}", newrelic.WrapHandleFunc(app, "/v2/employee/{employeeId}", middleware.IsAuthorized("admin", "editor", "viewer")(handler.GetEmployeeProfile))).Methods("GET")
-
 	r.HandleFunc("/v2/employee", middleware.IsAuthorized("admin", "editor")(handler.AddEmployee)).Methods("POST")
-	//r.HandleFunc("/v2/employee", newrelic.WrapHandleFunc(app, "/v2/employee", middleware.IsAuthorized("admin", "editor")(handler.AddEmployee))).Methods("POST")
-
 	r.HandleFunc("/v2/employee/{employeeId}", middleware.IsAuthorized("admin", "editor")(handler.UpdateEmployee)).Methods("PUT")
-	//r.HandleFunc("/v2/employee/{employeeId}", newrelic.WrapHandleFunc(app, "/v2/employee/{employeeId}", middleware.IsAuthorized("admin", "editor")(handler.UpdateEmployee))).Methods("PUT")
-
 	r.HandleFunc("/v2/employee/{employeeId}", middleware.IsAuthorized("admin")(handler.DeleteEmployee)).Methods("DELETE")
-	//r.HandleFunc("/v2/employee/{employeeId}", newrelic.WrapHandleFunc(app, "/v2/employee/{employeeId}", middleware.IsAuthorized("admin")(handler.DeleteEmployee))).Methods("DELETE")
 
 	// Manually register pprof handlers
 	r.HandleFunc("/debug/pprof/", pprof.Index)

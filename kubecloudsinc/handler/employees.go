@@ -23,6 +23,10 @@ func GetEmployees(w http.ResponseWriter, r *http.Request) {
 		txn.Application().RecordCustomEvent("GetEmployeesAttempt", map[string]interface{}{})
 	}
 
+	if txn != nil {
+		txn.AddAttribute("httpMethod", r.Method)
+	}
+
 	employees, err := dbs.QueryEmployees(txn, dbs.DB)
 	if err != nil {
 		log.Printf("Error querying all employees: %v", err)
@@ -58,6 +62,11 @@ func GetEmployee(w http.ResponseWriter, r *http.Request) {
 			"lastName":   lastName,
 		})
 	}
+
+	if txn != nil {
+		txn.AddAttribute("httpMethod", r.Method)
+	}
+
 	var employeeId int
 	var err error
 	if employeeIdStr != "" {
@@ -101,6 +110,11 @@ func AddEmployee(w http.ResponseWriter, r *http.Request) {
 	if txn != nil {
 		txn.Application().RecordCustomEvent("AddEmployeeAttempt", map[string]interface{}{})
 	}
+
+	if txn != nil {
+		txn.AddAttribute("httpMethod", r.Method)
+	}
+
 	var emp schema.Employee
 	if err := json.NewDecoder(r.Body).Decode(&emp); err != nil {
 		errorMessage := fmt.Sprintf("Failed to decode request body: %v", err)
@@ -151,18 +165,22 @@ func UpdateEmployee(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var emp schema.Employee
-	if err := json.NewDecoder(r.Body).Decode(&emp); err != nil {
-		log.Printf("Error decoding employee data for update: %v", err)
-		utils.SendErrorResponse(w, r, http.StatusBadRequest, err, "unique_error_id", "RequestBodyDecodeError", "UpdateEmployee")
-		return
-	}
-
 	// Record a custom event before attempting to update the employee
 	if txn != nil {
 		txn.Application().RecordCustomEvent("UpdateEmployeeAttempt", map[string]interface{}{
 			"employeeId": employeeId,
 		})
+	}
+
+	if txn != nil {
+		txn.AddAttribute("httpMethod", r.Method)
+	}
+
+	var emp schema.Employee
+	if err := json.NewDecoder(r.Body).Decode(&emp); err != nil {
+		log.Printf("Error decoding employee data for update: %v", err)
+		utils.SendErrorResponse(w, r, http.StatusBadRequest, err, "unique_error_id", "RequestBodyDecodeError", "UpdateEmployee")
+		return
 	}
 
 	log.Printf("Attempting to update employee with ID: %d", employeeId)
@@ -206,6 +224,10 @@ func DeleteEmployee(w http.ResponseWriter, r *http.Request) {
 		txn.Application().RecordCustomEvent("DeleteEmployeeAttempt", map[string]interface{}{
 			"employeeId": employeeId,
 		})
+	}
+
+	if txn != nil {
+		txn.AddAttribute("httpMethod", r.Method)
 	}
 
 	log.Printf("Attempting to delete employee with ID: %d", employeeId)
@@ -252,6 +274,10 @@ func GetEmployeeProfile(w http.ResponseWriter, r *http.Request) {
 		txn.Application().RecordCustomEvent("GetEmployeeProfileAttempt", map[string]interface{}{
 			"employeeId": employeeId,
 		})
+	}
+
+	if txn != nil {
+		txn.AddAttribute("httpMethod", r.Method)
 	}
 
 	log.Printf("Attempting to get employee profile with ID: %d", employeeId)
