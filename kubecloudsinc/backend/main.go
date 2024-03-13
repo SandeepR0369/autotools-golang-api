@@ -3,9 +3,9 @@
 package main
 
 import (
-	"autotools-golang-api/kubecloudsinc/dbs" // Replace with the path to your db package
-	"autotools-golang-api/kubecloudsinc/middleware"
-	"autotools-golang-api/kubecloudsinc/server"
+	"autotools-golang-api/kubecloudsinc/backend/dbs"
+	"autotools-golang-api/kubecloudsinc/backend/middleware"
+	"autotools-golang-api/kubecloudsinc/backend/server"
 
 	"log"
 	"os"

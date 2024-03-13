@@ -1,16 +1,18 @@
-module autotools-golang-api/kubecloudsinc
+module autotools-golang-api/kubecloudsinc/backend
 
 go 1.22.0
 
 require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/godror/godror v0.41.1
+	github.com/godror/godror v0.42.0
+	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
 	github.com/joho/godotenv v1.5.1
 	github.com/newrelic/go-agent/v3 v3.30.0
 )
 
 require (
+	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/godror/knownpb v0.1.1 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect

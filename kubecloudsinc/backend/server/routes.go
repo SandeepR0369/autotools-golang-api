@@ -1,12 +1,14 @@
 package server
 
 import (
-	"autotools-golang-api/kubecloudsinc/handler" // Adjust this import path to your project structure
-	"autotools-golang-api/kubecloudsinc/middleware"
+	// Adjust this import path to your project structure
+	"autotools-golang-api/kubecloudsinc/backend/handler"
+	"autotools-golang-api/kubecloudsinc/backend/middleware"
 	"log"
 	"net/http"
 	"net/http/pprof"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/newrelic/go-agent/v3/newrelic"
 )
@@ -14,7 +16,6 @@ import (
 // Initialize and return a new HTTP router
 func NewRouter(app *newrelic.Application) *mux.Router {
 	r := mux.NewRouter()
-	r.Use(middleware.NewRelicMiddleware(app))
 
 	r.HandleFunc("/v2/login", middleware.Login).Methods("POST")
 	r.HandleFunc("/v2/employees", middleware.IsAuthorized("admin", "editor", "viewer")(handler.GetEmployees)).Methods("GET")
@@ -40,7 +41,13 @@ func NewRouter(app *newrelic.Application) *mux.Router {
 // StartServer starts the HTTP server on a specified port
 func StartServer(port string, app *newrelic.Application) error {
 	r := NewRouter(app)
-	http.Handle("/", r)
+	//loggedRouter := handlers.LoggingHandler(os.Stdout, r)
+	// Setup CORS
+	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
+	originsOk := handlers.AllowedOrigins([]string{"http://localhost:3000"}) // The frontend origin
+	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS"})
+
+	//http.Handle("/", r)
 	log.Printf("Server starting on port %s", port)
-	return http.ListenAndServe(port, r)
+	return http.ListenAndServe(port, handlers.CORS(originsOk, headersOk, methodsOk)(r))
 }

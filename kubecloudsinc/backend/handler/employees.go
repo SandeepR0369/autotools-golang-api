@@ -1,9 +1,9 @@
 package handler
 
 import (
-	"autotools-golang-api/kubecloudsinc/dbs"
-	"autotools-golang-api/kubecloudsinc/schema"
-	"autotools-golang-api/kubecloudsinc/utils"
+	"autotools-golang-api/kubecloudsinc/backend/dbs"
+	"autotools-golang-api/kubecloudsinc/backend/schema"
+	"autotools-golang-api/kubecloudsinc/backend/utils"
 
 	"encoding/json"
 	"fmt"

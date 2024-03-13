@@ -1,7 +1,7 @@
 package dbs
 
 import (
-	schema "autotools-golang-api/kubecloudsinc/schema"
+	schema "autotools-golang-api/kubecloudsinc/backend/schema"
 	"bytes"
 	"context"
 	"database/sql"
