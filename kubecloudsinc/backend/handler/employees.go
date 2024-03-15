@@ -387,13 +387,13 @@ func validateAddEmployeeInput(emp *schema.Employee) error {
 
 func validateUpdateEmployeeInput(emp *schema.Employee) error {
 	validJobIDs := validJobIDs()
-	if emp.Email != nil || *emp.Email != "" {
+	if emp.Email != nil && *emp.Email != "" {
 		if err := validateEmail(*emp.Email); err != nil {
 			return err
 		}
 	}
 
-	if emp.Phone != nil || *emp.Phone != "" {
+	if emp.Phone != nil && *emp.Phone != "" {
 		normalizedPhone, err := normalizePhoneNumber(*emp.Phone)
 		if err != nil {
 			return err
@@ -401,7 +401,7 @@ func validateUpdateEmployeeInput(emp *schema.Employee) error {
 		*emp.Phone = normalizedPhone
 	}
 
-	if emp.HireDate != nil || *emp.HireDate != "" {
+	if emp.HireDate != nil && *emp.HireDate != "" {
 		_, err := time.Parse("2006-01-02 15:04:05", *emp.HireDate)
 		if err != nil {
 			_, err := time.Parse("2006-01-02", *emp.HireDate)
@@ -411,7 +411,7 @@ func validateUpdateEmployeeInput(emp *schema.Employee) error {
 		}
 	}
 
-	if emp.JobId != nil || *emp.JobId != "" {
+	if emp.JobId != nil && *emp.JobId != "" {
 		if _, exists := validJobIDs[*emp.JobId]; !exists {
 			return fmt.Errorf("invalid job ID: %s", *emp.JobId)
 		}
