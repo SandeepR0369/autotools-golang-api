@@ -2,6 +2,7 @@ package middleware
 
 // User represents a user with a username, password, and role.
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -11,6 +12,11 @@ import (
 
 	jwt "github.com/dgrijalva/jwt-go"
 )
+
+type contextKey string
+
+// RoleContextKey is the key for role values in the context
+const RoleContextKey contextKey = "userRole"
 
 type User struct {
 	Username string
@@ -146,8 +152,9 @@ func IsAuthorized(requiredRoles ...string) func(http.HandlerFunc) http.HandlerFu
 				return
 			}
 
-			// User is authorized; proceed with the next handler
-			next.ServeHTTP(w, r)
+			// User is authorized; add the user's role to the context
+			ctxWithRole := context.WithValue(r.Context(), RoleContextKey, claims.Role)
+			next.ServeHTTP(w, r.WithContext(ctxWithRole))
 		}
 	}
 }

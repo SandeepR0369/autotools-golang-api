@@ -2,8 +2,13 @@ package handler
 
 import (
 	"autotools-golang-api/kubecloudsinc/backend/dbs"
+	"autotools-golang-api/kubecloudsinc/backend/middleware"
 	"autotools-golang-api/kubecloudsinc/backend/schema"
 	"autotools-golang-api/kubecloudsinc/backend/utils"
+	"errors"
+	"regexp"
+	"strings"
+	"time"
 
 	"encoding/json"
 	"fmt"
@@ -123,6 +128,11 @@ func AddEmployee(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := validateAddEmployeeInput(&emp); err != nil {
+		utils.SendErrorResponse(w, r, http.StatusBadRequest, err, "unique_error_id", "InvalidRequestBody", "AddEmployee")
+		return
+	}
+
 	// Assuming `db` is your database connection available globally or passed in some way
 	employeeId, err := dbs.InsertEmployee(txn, dbs.DB, dbs.Employees(emp))
 
@@ -141,8 +151,9 @@ func AddEmployee(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("Employee added with ID: %d", employeeId) // Log success
+	successMessage := fmt.Sprintf("Employee with EmployeeId: %d successfully Added", employeeId)
 
-	response := map[string]int{"employeeId": employeeId}
+	response := map[string]string{"message": successMessage}
 	w.Header().Set("Content-Type", "application/json")
 
 	w.WriteHeader(http.StatusCreated)
@@ -152,9 +163,13 @@ func AddEmployee(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// UpdateEmployee handles the HTTP request for updating an employee
 func UpdateEmployee(w http.ResponseWriter, r *http.Request) {
 	txn := newrelic.FromContext(r.Context())
+	userRole, ok := r.Context().Value(middleware.RoleContextKey).(string)
+	if !ok {
+		utils.SendErrorResponse(w, r, http.StatusInternalServerError, fmt.Errorf("user role not found"), "unique_error_id", "UserRoleNotFound", "UpdateEmployee")
+		return
+	}
 
 	vars := mux.Vars(r)
 	employeeIdStr := vars["employeeId"]
@@ -183,13 +198,31 @@ func UpdateEmployee(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("Attempting to update employee with ID: %d", employeeId)
-
-	// Call the database operation from the dbop package
-	if err := dbs.UpdateEmployeeDB(txn, dbs.DB, employeeId, dbs.Employees(emp)); err != nil {
-		log.Printf("Error updating employee with ID %d: %v", employeeId, err)
-		utils.SendErrorResponse(w, r, http.StatusInternalServerError, err, "unique_error_id", "EmployeeUpdateError", "UpdateEmployee")
+	if err := validateUpdateEmployeeInput(&emp); err != nil {
+		utils.SendErrorResponse(w, r, http.StatusBadRequest, err, "unique_error_id", "InvalidRequestBody", "AddEmployee")
 		return
+	}
+
+	proceedWithUpdate := true
+	var restrictedFields = make([]string, 0)
+
+	if userRole == "editor" {
+		restrictedFields = checkRestrictedFields(emp)
+		if len(restrictedFields) > 0 {
+			errMsg := fmt.Sprintf("You don't have enough permissions to update these fields: %s", strings.Join(restrictedFields, ", "))
+			log.Println(errMsg)
+			utils.SendErrorResponse(w, r, http.StatusForbidden, fmt.Errorf(errMsg), "unique_error_id", "InsufficientPermissions", "UpdateEmployee")
+			proceedWithUpdate = false
+		}
+	} // No else if needed here, admin has full access and others are already blocked by middleware
+
+	if proceedWithUpdate {
+		if err := dbs.UpdateEmployeeDB(txn, dbs.DB, employeeId, dbs.Employees(emp)); err != nil {
+			log.Printf("Error updating employee with ID %d: %v", employeeId, err)
+			utils.SendErrorResponse(w, r, http.StatusInternalServerError, err, "unique_error_id", "EmployeeUpdateError", "UpdateEmployee")
+			return
+		}
+		log.Printf("Employee with ID %d successfully updated", employeeId)
 	}
 
 	// Record a custom event after successfully updating the employee
@@ -200,11 +233,12 @@ func UpdateEmployee(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	log.Printf("Employee with ID %d successfully updated", employeeId)
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(emp); err != nil {
-		utils.SendErrorResponse(w, r, http.StatusInternalServerError, err, "unique_error_id", "JSONEncodingError", "UpdateEmployee")
+	if proceedWithUpdate {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(emp); err != nil {
+			utils.SendErrorResponse(w, r, http.StatusInternalServerError, err, "unique_error_id", "JSONEncodingError", "UpdateEmployee")
+		}
 	}
 }
 
@@ -307,4 +341,157 @@ func GetEmployeeProfile(w http.ResponseWriter, r *http.Request) {
 		utils.SendErrorResponse(w, r, http.StatusInternalServerError, err, "unique_error_id", "JSONEncodingError", "GetEmployeeProfile")
 		return
 	}
+}
+
+// validateEmployeeInput validates the fields of Employee
+func validateAddEmployeeInput(emp *schema.Employee) error {
+	validJobIDs := validJobIDs()
+	if emp.FirstName == nil || *emp.FirstName == "" {
+		return errors.New("first name is required")
+	}
+	if emp.LastName == nil || *emp.LastName == "" {
+		return errors.New("last name is required")
+	}
+	if emp.Email == nil || *emp.Email == "" {
+		return errors.New("email is required")
+	} else if err := validateEmail(*emp.Email); err != nil {
+		return err
+	}
+	if emp.Phone == nil || *emp.Phone == "" {
+		return errors.New("phone number is required")
+	} else {
+		normalizedPhone, err := normalizePhoneNumber(*emp.Phone)
+		if err != nil {
+			return err
+		}
+		*emp.Phone = normalizedPhone // Update the employee's phone number to the normalized format
+	}
+	if emp.HireDate == nil || *emp.HireDate == "" {
+		return errors.New("hire date is required")
+	} else if _, err := time.Parse("2006-01-02 15:04:05", *emp.HireDate); err != nil {
+		_, err := time.Parse("2006-01-02", *emp.HireDate)
+		if err != nil {
+			return fmt.Errorf("invalid date format for hire date: %v", err)
+		}
+	}
+	if emp.JobId == nil || *emp.JobId == "" {
+		return errors.New("job ID is required")
+	} else if _, exists := validJobIDs[*emp.JobId]; !exists {
+		return fmt.Errorf("invalid job ID: %s", *emp.JobId)
+	}
+	if emp.Salary == nil {
+		return errors.New("salary is required")
+	}
+	return nil
+}
+
+func validateUpdateEmployeeInput(emp *schema.Employee) error {
+	validJobIDs := validJobIDs()
+	if emp.Email != nil || *emp.Email != "" {
+		if err := validateEmail(*emp.Email); err != nil {
+			return err
+		}
+	}
+
+	if emp.Phone != nil || *emp.Phone != "" {
+		normalizedPhone, err := normalizePhoneNumber(*emp.Phone)
+		if err != nil {
+			return err
+		}
+		*emp.Phone = normalizedPhone
+	}
+
+	if emp.HireDate != nil || *emp.HireDate != "" {
+		_, err := time.Parse("2006-01-02 15:04:05", *emp.HireDate)
+		if err != nil {
+			_, err := time.Parse("2006-01-02", *emp.HireDate)
+			if err != nil {
+				return fmt.Errorf("invalid date format for hire date: %v", err)
+			}
+		}
+	}
+
+	if emp.JobId != nil || *emp.JobId != "" {
+		if _, exists := validJobIDs[*emp.JobId]; !exists {
+			return fmt.Errorf("invalid job ID: %s", *emp.JobId)
+		}
+	}
+
+	return nil
+}
+
+// validateEmail checks if the email address is valid
+func validateEmail(email string) error {
+	// Regular expression to validate email according to the specified rules
+	regexPattern := `^(?:[a-zA-Z0-9]+[_\.-]?)*[a-zA-Z0-9]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z]{2,})+$`
+	match, _ := regexp.MatchString(regexPattern, email)
+	if !match {
+		return errors.New("invalid email format")
+	}
+	return nil
+}
+
+// validatePhone checks if the phone number is valid
+func normalizePhoneNumber(phone string) (string, error) {
+	reg, err := regexp.Compile("[^0-9]+")
+	if err != nil {
+		return "", err
+	}
+	normalizedPhone := reg.ReplaceAllString(phone, "")
+
+	if len(normalizedPhone) != 10 {
+		return "", fmt.Errorf("phone number after normalization does not have 10 digits: %s", normalizedPhone)
+	}
+
+	reformattedPhone := fmt.Sprintf("%s.%s.%s", normalizedPhone[0:3], normalizedPhone[3:6], normalizedPhone[6:])
+	return reformattedPhone, nil
+}
+
+func validJobIDs() map[string]bool {
+	return map[string]bool{
+		"AC_MGR":     true,
+		"AC_ACCOUNT": true,
+		"AD_ASST":    true,
+		"AD_PRES":    true,
+		"AD_VP":      true,
+		"FI_ACCOUNT": true,
+		"FI_MGR":     true,
+		"HR_REP":     true,
+		"IT_PROG":    true,
+		"MK_MAN":     true,
+		"MK_REP":     true,
+		"PR_REP":     true,
+		"PU_CLERK":   true,
+		"PU_MAN":     true,
+		"SA_MAN":     true,
+		"SA_REP":     true,
+		"SH_CLERK":   true,
+		"ST_CLERK":   true,
+		"ST_MAN":     true,
+	}
+}
+
+func checkRestrictedFields(emp schema.Employee) []string {
+	var restrictedFields []string
+
+	if emp.Salary != nil {
+		restrictedFields = append(restrictedFields, "salary")
+	}
+	if emp.JobId != nil {
+		restrictedFields = append(restrictedFields, "jobId")
+	}
+	if emp.HireDate != nil {
+		restrictedFields = append(restrictedFields, "hireDate")
+	}
+	if emp.CommissionPct != nil {
+		restrictedFields = append(restrictedFields, "commissionPct")
+	}
+	if emp.ManagerId != nil {
+		restrictedFields = append(restrictedFields, "managerId")
+	}
+	if emp.DepartmentId != nil {
+		restrictedFields = append(restrictedFields, "departmentId")
+	}
+
+	return restrictedFields
 }
