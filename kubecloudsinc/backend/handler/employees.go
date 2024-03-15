@@ -411,10 +411,10 @@ func validateUpdateEmployeeInput(emp *schema.Employee) error {
 		}
 	}
 
-	if emp.JobId != nil && *emp.JobId != "" {
-		if _, exists := validJobIDs[*emp.JobId]; !exists {
-			return fmt.Errorf("invalid job ID: %s", *emp.JobId)
-		}
+	if emp.JobId == nil || *emp.JobId == "" {
+		return errors.New("job ID is required")
+	} else if _, exists := validJobIDs[*emp.JobId]; !exists {
+		return fmt.Errorf("invalid job ID: %s", *emp.JobId)
 	}
 
 	return nil
@@ -440,7 +440,7 @@ func normalizePhoneNumber(phone string) (string, error) {
 	normalizedPhone := reg.ReplaceAllString(phone, "")
 
 	if len(normalizedPhone) != 10 {
-		return "", fmt.Errorf("phone number after normalization does not have 10 digits: %s", normalizedPhone)
+		return "", fmt.Errorf("phone number does not have 10 digits: %s", normalizedPhone)
 	}
 
 	reformattedPhone := fmt.Sprintf("%s.%s.%s", normalizedPhone[0:3], normalizedPhone[3:6], normalizedPhone[6:])
@@ -476,9 +476,6 @@ func checkRestrictedFields(emp schema.Employee) []string {
 
 	if emp.Salary != nil {
 		restrictedFields = append(restrictedFields, "salary")
-	}
-	if emp.JobId != nil {
-		restrictedFields = append(restrictedFields, "jobId")
 	}
 	if emp.HireDate != nil {
 		restrictedFields = append(restrictedFields, "hireDate")
