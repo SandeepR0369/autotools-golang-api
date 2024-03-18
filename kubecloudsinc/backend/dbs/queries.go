@@ -1,8 +1,9 @@
 package dbs
 
 import (
-	schema "autotools-golang-api/kubecloudsinc/schema"
+	schema "autotools-golang-api/kubecloudsinc/backend/schema"
 	"bytes"
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	_ "github.com/godror/godror"
+	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
 var (
@@ -44,13 +46,24 @@ func InitDB(dsn string) error {
 	return nil
 }
 
-func QueryEmployees(db *sql.DB) ([]Employees, error) {
+func QueryEmployees(txn *newrelic.Transaction, db *sql.DB) ([]Employees, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	segment := newrelic.DatastoreSegment{
+		StartTime:  txn.StartSegmentNow(),
+		Product:    newrelic.DatastoreOracle,
+		Collection: "employees",
+		Operation:  "SELECT",
+	}
+	defer segment.End()
+
 	log.Println("Making a DB call to get all employees")
 	// Define the SQL query
 	query := `SELECT employee_id, first_name, last_name, email, phone_number, hire_date, job_id, salary, commission_pct, manager_id, department_id FROM employees`
 
 	// Execute the query
-	rows, err := db.Query(query)
+	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("query failed: %v", err)
 	}
@@ -80,7 +93,18 @@ func QueryEmployees(db *sql.DB) ([]Employees, error) {
 	return employees, nil
 }
 
-func QueryEmployee(db *sql.DB, employeeId int, lastName string) ([]Employees, error) {
+func QueryEmployee(txn *newrelic.Transaction, db *sql.DB, employeeId int, lastName string) ([]Employees, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	segment := newrelic.DatastoreSegment{
+		StartTime:  txn.StartSegmentNow(),
+		Product:    newrelic.DatastoreOracle,
+		Collection: "employees",
+		Operation:  "SELECT",
+	}
+	defer segment.End()
+
 	log.Println("Making a DB call to get employee")
 
 	// First, check if the employee exists
@@ -120,7 +144,7 @@ func QueryEmployee(db *sql.DB, employeeId int, lastName string) ([]Employees, er
 	log.Println("Debug Query:", debugQuery)
 
 	// Execute the query using the built query string and parameters
-	rows, err := db.Query(baseQuery, queryParams...)
+	rows, err := db.QueryContext(ctx, baseQuery, queryParams...)
 	if err != nil {
 		log.Printf("Query failed: %v", err)
 		return nil, fmt.Errorf("query failed: %v", err)
@@ -146,7 +170,18 @@ func QueryEmployee(db *sql.DB, employeeId int, lastName string) ([]Employees, er
 	return employees, nil
 }
 
-func InsertEmployee(db *sql.DB, emp Employees) (int, error) {
+func InsertEmployee(txn *newrelic.Transaction, db *sql.DB, emp Employees) (int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	segment := newrelic.DatastoreSegment{
+		StartTime:  txn.StartSegmentNow(),
+		Product:    newrelic.DatastoreOracle,
+		Collection: "employees",
+		Operation:  "INSERT",
+	}
+	defer segment.End()
+
 	log.Printf("Making a DB call to insert employee")
 	query := `INSERT INTO employees (employee_id, first_name, last_name, email, phone_number, hire_date, job_id, salary, commission_pct, manager_id, department_id)
               VALUES (:1, :2, :3, :4, :5, TO_DATE(:6, 'YYYY-MM-DD HH24:MI:SS'), :7, :8, :9, :10, :11) RETURNING employee_id INTO :12`
@@ -169,7 +204,7 @@ func InsertEmployee(db *sql.DB, emp Employees) (int, error) {
 		sql.Out{Dest: &returnedEmployeeId}, // For capturing the RETURNING value
 	}
 
-	if _, err := db.Exec(query, args...); err != nil {
+	if _, err := db.ExecContext(ctx, query, args...); err != nil {
 		log.Printf("Failed to insert employee: %v", err)
 		return 0, fmt.Errorf("failed to insert employee: %v", err)
 	}
@@ -181,7 +216,18 @@ func InsertEmployee(db *sql.DB, emp Employees) (int, error) {
 	return 0, errors.New("failed to insert employee")
 }
 
-func UpdateEmployeeDB(db *sql.DB, employeeId int, emp Employees) error {
+func UpdateEmployeeDB(txn *newrelic.Transaction, db *sql.DB, employeeId int, emp Employees) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	segment := newrelic.DatastoreSegment{
+		StartTime:  txn.StartSegmentNow(),
+		Product:    newrelic.DatastoreOracle,
+		Collection: "employees",
+		Operation:  "UPDATE",
+	}
+	defer segment.End()
+
 	log.Printf("Making a DB call to update employeeId: %d", employeeId)
 	// First, check if the employee exists
 	err := checkEmployeeExistence(db, employeeId, "")
@@ -234,13 +280,12 @@ func UpdateEmployeeDB(db *sql.DB, employeeId int, emp Employees) error {
 	query += strings.Join(updates, ", ")
 	query += fmt.Sprintf(" WHERE employee_id = :%d", argCount)
 	args = append(args, employeeId)
-	log.Println("JAFFA1")
 
 	// Debugging: Log the final query and parameters
 	debugQuery := DebugQuery(query, args)
 	log.Println("Debug Query Update:", debugQuery)
 	// Execute the update
-	result, err := db.Exec(query, args...)
+	result, err := db.ExecContext(ctx, query, args...)
 	if err != nil {
 		log.Printf("Failed to update employee: %v", err)
 		return fmt.Errorf("failed to update employee: %v", err)
@@ -262,21 +307,32 @@ func UpdateEmployeeDB(db *sql.DB, employeeId int, emp Employees) error {
 	return nil
 }
 
-func DeleteEmployeeByID(db *sql.DB, employeeId int) error {
+func DeleteEmployeeByID(txn *newrelic.Transaction, db *sql.DB, employeeId int) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	segment := newrelic.DatastoreSegment{
+		StartTime:  txn.StartSegmentNow(),
+		Product:    newrelic.DatastoreOracle,
+		Collection: "employees",
+		Operation:  "DELETE",
+	}
+	defer segment.End()
+
 	// First, check if the employee exists
 	err := checkEmployeeExistence(db, employeeId, "")
 	if err != nil {
 		return err
 	}
 
-	log.Printf("Attempting to delete employee with ID: %d", employeeId)
-	tx, err := db.Begin()
+	log.Printf("Making a DB call to delete employee with ID: %d", employeeId)
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		log.Printf("Failed to start transaction: %v", err)
 		return fmt.Errorf("failed to start transaction: %v", err)
 	}
 
-	_, err = tx.Exec("DELETE FROM employees WHERE employee_id = :1", employeeId)
+	_, err = tx.ExecContext(ctx, "DELETE FROM employees WHERE employee_id = :1", employeeId)
 	if err != nil {
 		rbErr := tx.Rollback()
 		if rbErr != nil {
@@ -295,9 +351,18 @@ func DeleteEmployeeByID(db *sql.DB, employeeId int) error {
 	return nil
 }
 
-// Assuming schema and EmployeeProfile structs are defined properly
+func GetEmployeeProfile(txn *newrelic.Transaction, db *sql.DB, employeeId int) (*EmployeeProfile, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
 
-func GetEmployeeProfile(db *sql.DB, employeeId int) (*EmployeeProfile, error) {
+	segment := newrelic.DatastoreSegment{
+		StartTime:  txn.StartSegmentNow(),
+		Product:    newrelic.DatastoreOracle,
+		Collection: "employees",
+		Operation:  "SELECT",
+	}
+	defer segment.End()
+
 	log.Printf("Making a DB call to fetch employee profile with ID: %d", employeeId)
 
 	// First, check if the employee exists
@@ -307,46 +372,65 @@ func GetEmployeeProfile(db *sql.DB, employeeId int) (*EmployeeProfile, error) {
 	}
 
 	query := `
-        SELECT e.employee_id,
-            e.first_name,
-            e.last_name,
-            e.email,
-            e.phone_number,
-            e.salary,
-            e.commission_pct,
-            e.job_id,
-            j.job_title,
-            e.hire_date,
-            d.department_id,
-            d.department_name,
-            e.manager_id,
-            m.first_name AS manager_firstName,
-            m.last_name AS manager_lastName,
-            l.location_id,
-            l.street_address,
-            l.postal_code,
-            l.city,
-            l.state_province,
-            c.country_id,
-            c.country_name,
-            r.region_id,
-            r.region_name,
-            jb.job_title as job_history_title,
-            jh.start_date,
-            jh.end_date,
-            jh.job_id AS job_history_id
-        FROM EMPLOYEES e
-        JOIN EMPLOYEES m ON e.manager_id = m.employee_id
-        JOIN JOBS j ON j.job_id = e.job_id
-        JOIN JOB_HISTORY jh ON jh.employee_id = e.employee_id
-        JOIN JOBS jb ON jb.job_id = jh.job_id
-        JOIN DEPARTMENTS d ON d.department_id = e.department_id
-        JOIN LOCATIONS l ON d.location_id = l.location_id
-        JOIN COUNTRIES c ON c.country_id = l.country_id
-        JOIN REGIONS r ON c.region_id = r.region_id
-        WHERE e.employee_id = :1
+	SELECT
+    e.employee_id,
+    e.first_name,
+    e.last_name,
+    e.email,
+    e.phone_number,
+    e.salary,
+    e.commission_pct,
+    e.job_id,
+    j.job_title,
+    e.hire_date,
+    d.department_id,
+    d.department_name,
+    e.manager_id,
+    m.first_name AS manager_firstName,
+    m.last_name AS manager_lastName,
+    l.location_id,
+    l.street_address,
+    l.postal_code,
+    l.city,
+    l.state_province,
+    c.country_id,
+    c.country_name,
+    r.region_id,
+    r.region_name,
+    jh.job_title AS job_history_title,
+    jh.start_date,
+    jh.end_date,
+    jh.job_id AS job_history_id
+FROM
+    EMPLOYEES e
+JOIN
+    EMPLOYEES m ON e.manager_id = m.employee_id
+JOIN
+    JOBS j ON j.job_id = e.job_id
+JOIN
+    DEPARTMENTS d ON d.department_id = e.department_id
+JOIN
+    LOCATIONS l ON d.location_id = l.location_id
+JOIN
+    COUNTRIES c ON c.country_id = l.country_id
+JOIN
+    REGIONS r ON c.region_id = r.region_id
+LEFT JOIN (
+    SELECT
+        jh.employee_id,
+        j.job_title,
+        jh.start_date,
+        jh.end_date,
+        jh.job_id
+    FROM
+        JOB_HISTORY jh
+    JOIN
+        JOBS j ON j.job_id = jh.job_id
+) jh ON jh.employee_id = e.employee_id
+WHERE
+    e.employee_id = :1
     `
-	rows, err := db.Query(query, employeeId)
+	rows, err := db.QueryContext(ctx, query, employeeId)
 	if err != nil {
 		return nil, err
 	}
@@ -359,7 +443,8 @@ func GetEmployeeProfile(db *sql.DB, employeeId int) (*EmployeeProfile, error) {
 	for rows.Next() {
 		var (
 			managerFirstName, managerLastName, departmentName, countryName, regionName, jobHistoryTitle string
-			hireDate, startDate, endDate, jobTitle                                                      string
+			hireDate, jobTitle                                                                          string
+			startDate, endDate                                                                          sql.NullString
 			departmentId, locationId, regionId                                                          int
 			streetAddress, postalCode, city, stateProvince, countryId, jobId, jobHistoryId              string
 			commissionPct                                                                               sql.NullFloat64
@@ -401,13 +486,25 @@ func GetEmployeeProfile(db *sql.DB, employeeId int) (*EmployeeProfile, error) {
 		}
 
 		// Set the commission percentage
-		employeeProfile.CommissionPct = &commissionPct
+		employeeProfile.CommissionPct = &commissionPct.Float64
 
 		// Set the commission percentage
 		var commission NullableFloat64
 		if commissionPct.Valid {
 			commission.Float64 = commissionPct.Float64
 			commission.Valid = true
+		}
+
+		var startDatePtr *string
+		if startDate.Valid {
+			startDateValue := startDate.String
+			startDatePtr = &startDateValue
+		}
+
+		var endDatePtr *string
+		if endDate.Valid {
+			endDateValue := endDate.String
+			endDatePtr = &endDateValue
 		}
 
 		// Set the salary
@@ -443,8 +540,8 @@ func GetEmployeeProfile(db *sql.DB, employeeId int) (*EmployeeProfile, error) {
 		// Append job history to the existing job
 		existingJob.JobHistory = append(existingJob.JobHistory, &schema.JobHistory{
 			JobTitle:  &jobHistoryTitle,
-			StartDate: &startDate,
-			EndDate:   &endDate,
+			StartDate: startDatePtr,
+			EndDate:   endDatePtr,
 			JobId:     &jobHistoryId,
 		})
 

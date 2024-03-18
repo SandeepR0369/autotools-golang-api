@@ -1,0 +1,50 @@
+/* App.css */
+.header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 150px; /* This sets the height of the header area */
+    background-color: #f8f9fa; /* Light gray background similar to Google */
+  }
+  
+  .logo {
+    font-family: 'Arial', sans-serif; /* Google-like font */
+    font-size: 30px; /* Adjust size as needed */
+    color: #5f6368; /* Google-like font color */
+  }
+  
+.login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+  
+  .login-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    max-width: 320px; /* You can adjust this value */
+  }
+  
+  .login-input,
+  .login-button {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+  
+  .login-button {
+    cursor: pointer;
+    background-color: #6200ea;
+    color: white;
+    border: none;
+  }
+  
+  .error {
+    color: red;
+    text-align: center;
+  }
+  
